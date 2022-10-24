@@ -1,0 +1,278 @@
+---
+title: "Analysis of Boston Police Incidents"
+output:
+  html_document:
+    theme: default
+    df_print: paged
+    fig_width: 8
+    code_folding: hide
+    highlight: tango
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+---
+Olivia Kjorlien, Naman Goyal & Pranjal Patel
+
+05/01/2022
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r package, include=FALSE,echo=TRUE}
+
+data <- read.csv('/Users/pranj/Desktop/Assignments/Foundation of analytics with R/Project/crime.csv')
+library(sampling)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(dplyr)
+library(data.table)
+library(ggrepel)
+library(tidyverse)
+library("ggmap")
+library(devtools)
+
+
+violent <- c('Larceny', 'Simple Assault', 'Vandalism', 'Warrant Arrests', 'Aggravated Assault',
+             'Auto Theft', 'Robbery', 'Harassment', 'Police Service Incidents', 'Disorderly Conduct',
+             'Firearm Violations', 'Restraining Order Violations', 'Commercial Burglary',
+             'Firearm Discovery', 'Offenses Against Child / Family', 'Other Burglary', 'Prisoner Related Incidents',
+             'Homicide', 'Criminal Harassment', 'Arson', 'HOME INVASION', 'Explosives', 'Manslaughter',
+             'HUMAN TRAFICKING', 'Burlary - No Property Taken', 'HUMAN TRAFFICKING - INVOLUNTARY SERVITUDE')
+
+data['Violent'] <- data$OFFENSE_CODE_GROUP %in% violent
+
+```
+## Data set overview
+
+Police incident reports are provided by Boston Police Department (BPD) to document the initial details surrounding an incident to which BPD officers respond. This is a dataset containing records from the new crime incident report system, which includes a reduced set of fields focused on capturing the type of incident as well as when and where it occurred.Records begin on June 14, 2015 and continue to September 3, 2018.Analyze Boston provides this data.To put these two data sources into one dataset, specific columns of data were chosen and then put into chronological order daily. The columns we decided to put together include data, number of crimes by day. The data consists of an incident number, offense code, offense code group, offense description, district, reporting area, shooting, occurred on the date, year, month, day of the week, hour, ucr part, street, latitude, longitude, location, offense. It is important to keep this in mind while interpreting the graphs and figures.Each row represents a crime report, including: the type of crime, date and time, and location.
+
+## Goal of Analysis
+
+The goal of the analysis is to get a better understanding of the patterns of the crime in Boston. Some questions to ask are what are the frequent places in Boston where crimes occur? What is the peak time when the crimes occur? What type of crime occurs the most?
+
+## Data Preparation
+
+The data provided held a lot of valuable information. Most of the data prep was to get counts and aggregations of the information. Often new data frames or vectors were created to store this information. Next, we generated a link from our .csv file data and imported that data into RStudio to begin our analysis. We wrote code to jump over these cells in the R script to ensure our code will run without errors. The data was saved as a dataset in our environment under the label crime.csv. 
+
+```{r Data, echo= TRUE}
+data
+
+```
+
+## Distribution of Police Incidents by Year
+
+In the plot below, we examine the distribution of police incidents by year. We see the highest years are 2016 and 2017, while 2015 and 2018 have fewer incidents.
+
+
+```{r Numerical, echo = TRUE}
+year_data <- table(data$YEAR)
+slice.labels <- names(year_data)
+slice.percents <- round(year_data/sum(year_data) * 100)
+slice.labels <- paste(slice.labels, slice.percents)
+slice.labels <- paste(slice.labels, '%', sep = '')
+par(mfrow = c(1,1))
+pie(table(data$YEAR), labels = slice.labels, main = 'Distribution of Police Incidents by Year',
+    col = hcl(c(0, 60, 120, 200)))
+
+```
+
+## Frequency of Incidents by Day of Week
+
+We then looked at how incidents are distributed over the week. We see it is relatively constant across the week. Friday has the most incidents by a slim margin, and Monday is slightly lower than the rest. However, we do not see enough of a difference to make any conclusions.
+
+
+```{r categorical, echo = TRUE}
+barplot(table(data$DAY_OF_WEEK), main = 'Frequency of Incidents by Day of Week',
+        ylab = 'Frequency', xlab = 'Day of Week', col = '#0000FF',
+        names.arg = c('Friday', 'Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'))
+
+```
+
+## Frequencies of Offense by Day of Week
+
+We further investigated the incidents by day of week by breaking it up into the type of offense. While we saw a relatively even spread for the whole dataset, we predicted that the frequency of incidents might vary by day for different offenses.
+
+We grouped the data by count of the offense We then took a subset of the data that was in the top 5 most frequent offense groups. These are: Investigate Person, Larceny, Medical Assistance, Motor Vehicle Accident Response and Other. The plot below shows the distribution of incidents by weekday for each of the top five offenses. We again see similar results as the whole dataset, where the frequency of incidents does not depend on the day of week.
+
+
+```{r two variables, echo = TRUE}
+offense <- data %>% count(OFFENSE_CODE_GROUP, sort = TRUE)
+top_five <- offense[1:5,1]
+#subset of the data
+subset <- data %>% filter(data$OFFENSE_CODE_GROUP %in% top_five)
+#make plot
+ggplot(data = subset) + geom_bar(mapping= aes(x = OFFENSE_CODE_GROUP, fill = DAY_OF_WEEK)) +
+  ggtitle('Frequency of Offense by Day of Week') + xlab('Type of Offense') + ylab('Frequency') +
+  labs(fill = 'Day of Week')
+```
+
+## Distribution of Incidents by Hour
+
+The variable we choose for numerical data is the distribution of incidents by hour. So, the hour was the perfect variable as it had a numerical value, and we can get the distribution of incidents based on the frequency as you see from the graph that these police incidents were reported on each hour of the day.
+
+```{r By hour, echo= TRUE}
+
+hist(data$HOUR, main = 'Distribution of Incidents by Hour', xlab = 'Hour', col = '#0000FF')
+cat("For whole dataset:", " Mean = ", mean(data$HOUR),
+    " SD = ", sd(data$HOUR), "\n")
+
+```
+
+## Central Limit Theorem 
+
+The Central Limit Theorem states that the distribution of the sample means that a given sample size of the population has the normal distribution shape. The theorem is shown with various input data distributions in the following sections. In other words, as the sample size gets larger, the means of the samples become a normal distribution. The graph, when the sample size is 10, is relatively small and thus does not showcase proper distribution. However, as the sample size increases the normal distribution is clearly observed. Therefore, we can apply central limit theorem Below is a figure showing the distributions of 5000 random samples of sample sizes of 10, 20, 30, and 40. So for the histogram, xlab= Sample mean and ylab= Density. 
+ 
+- Sample Size =  10  Mean =  0.3138  SD =  0.1476141
+- Sample Size =  20  Mean =  0.31066  SD =  0.1025401 
+- Sample Size =  30  Mean =  0.31162  SD =  0.08516901 
+- Sample Size =  40  Mean =  0.312525  SD =  0.07251932 
+
+
+```{r Central limit, echo= TRUE}
+
+########## SAMPLING PART 1: CENTRAL LIMIT THEOREM ###############
+#percent of incidents that are violent for the whole dataset
+cat("For whole dataset:", " Mean = ", round(100 * mean(data$Violent), 2), "%\n")
+
+#set number of samples
+samples <- 5000
+xbar <- numeric(samples)
+#set the start seed for random numbers as the last 4 digits of your BU id
+set.seed(9144)
+#2 by 2 plots
+par(mfrow = c(2,2))
+
+#set colors
+cols <- c('#0000FF', '#00FF00', '#FF0000', '#00FFFF')
+
+#get samples of different sizes and compare histograms
+for (size in c(10, 20, 30, 40)) {
+  color <- cols[size / 10]
+  for (i in 1:samples) {
+    xbar[i] <- mean(sample(data$Violent, size = size, replace = FALSE))
+  }
+  #make histograms
+  hist(xbar, prob = TRUE,
+       main = paste("Sample Size =", size), xlab = "Sample mean", col = color)
+  #print means and sd
+  cat("Sample Size = ", size, " Mean = ", mean(xbar),
+      " SD = ", sd(xbar), "\n")
+}
+
+```
+
+## Sampling Methods
+
+We used three different sampling methods to investigate the proportion of incidents that are violent. First, we classified each offense group as violent or non-violent and assigned a label of True or False to each row. The true mean for the whole dataset, as seen in the top left plot below, is 31.17%. Our most accurate sampling method is the simple random sample.
+
+- Method 1: Simple Random Sample. We started with a simple random sample without replacement. In simple random sampling, every item from a frame has the same chance for selection in the sample as every other item. We took a simple random sample size of n = 50. Our sample mean was 38%, which is a bit higher than the true mean.
+
+- Method 2: Systematic Sample. We then took a systematic sample. In systematic sampling, the items from the frame are partitioned into groups. Each group has k items, where k = N / n, rounded to the nearest integer. The first item in the sample is randomly selected from the first set of items in the frame. Then the remaining items are selected by taking every kth item from the frame. We used a sample size of n = 50. Our sample mean was 32% which is very close to the true mean.
+
+- Method 3: Inclusion Probability (Year). Lastly, we used inclusion probability with respect to the Year. In our previous sampling methods, every item has equal probability of being selected for the sample. Here, the probability for each item is proportional to the size of the group. We used years for our groups. We again took a sample size of n = 50. Our sample mean was 34%, which is only slightly above the true mean.
+
+```{r sampling, echo= TRUE}
+
+########### SAMPLING PART 2: SAMPLING METHODS ###############
+#pie chart of whole data
+sample_data <- table(data$Violent)
+slice.labels <- c('Non-Violent', 'Violent')
+slice.percents <- round(sample_data/sum(sample_data) * 100)
+slice.labels <- paste(slice.labels, slice.percents)
+slice.labels <- paste(slice.labels, '%', sep = '')
+pie(sample_data, labels = slice.labels, main = 'Whole Dataset',
+    col = hcl(c(0, 200)))
+#define n and N
+n <- 50
+N <- nrow(data)
+
+## METHOD 1: SIMPLE RANDOM SAMPLE WITHOUT REPLACEMENT
+set.seed(9144)
+s <- srswor(n, N)
+rows <- (1:N)[s != 0]
+#get sample
+sample.1 <- data[rows, ]
+#percent of violent incidents
+sample.1 %>% count(Violent, sort = TRUE) %>% 
+  mutate(Freq = paste0(100 * n/sum(n), "%"))
+#pie chart of sample 
+sample_data <- table(sample.1$Violent)
+slice.labels <- c('Non-Violent', 'Violent')
+slice.percents <- round(sample_data/sum(sample_data) * 100)
+slice.labels <- paste(slice.labels, slice.percents)
+slice.labels <- paste(slice.labels, '%', sep = '')
+pie(sample_data, labels = slice.labels, main = 'Method 1',
+    col = hcl(c(0, 200)))
+
+## METHOD 2: SYSTEMATIC SAMPLE
+set.seed(9144)
+#items in each group
+k <- ceiling(N / n)
+#random item from first group
+r <- sample(k, 1)
+#select every kth item
+s <- seq(r, by = k, length = n)
+#get sample
+sample.2 <- na.omit(data[s, ])
+#frequencies of violent incidents with respect to sample size
+sample.2 %>% count(Violent, sort = TRUE) %>% 
+  mutate(Freq = paste0(round(100 * n/sum(n), 2), "%"))
+sample_data <- table(sample.2$Violent)
+slice.labels <- names(sample_data)
+slice.labels <- c('Non-Violent', 'Violent')
+slice.percents <- round(sample_data/sum(sample_data) * 100)
+slice.labels <- paste(slice.labels, slice.percents)
+slice.labels <- paste(slice.labels, '%', sep = '')
+pie(sample_data, labels = slice.labels, main = 'Method 2',
+    col = hcl(c(0, 200)))
+
+## METHOD #: INCLUSION PROBABILITIES (YEAR)
+set.seed(9144)
+pik <- inclusionprobabilities(data$YEAR, n)
+s <- UPsystematic(pik)
+sample.3 <- data[s != 0, ]
+#frequencies of departments with respect to sample size
+sample.3 %>% count(Violent, sort = TRUE) %>% 
+  mutate(Freq = paste0(100 * n/sum(n), "%"))
+sample_data <- table(sample.3$Violent)
+slice.labels <- names(sample_data)
+slice.labels <- c('Non-Violent', 'Violent')
+slice.percents <- round(sample_data/sum(sample_data) * 100)
+slice.labels <- paste(slice.labels, slice.percents)
+slice.labels <- paste(slice.labels, '%', sep = '')
+pie(sample_data, labels = slice.labels, main = 'Method 3',
+    col = hcl(c(0, 200)))
+
+```
+
+## Crime Location Density Plot
+
+The Map below show the density of location of the crime occurring in the city of Boston.The map has been generated using the latitude and longitude column of the data. The more light colored the area marked the more dense the number of incident. Through the map we can deduce that the area Back Bay has saw more incidence occur.
+
+```{r Density map, echo=FALSE}
+df <- read.csv('/Users/pranj/Desktop/Assignments/Foundation of analytics with R/Project/crime.csv')
+
+#Set your API Key
+ggmap::register_google(key = "AIzaSyBvsAHZZyk2Qgsb8oBDSI-lzCr-gyQg024")
+
+p <- ggmap(get_googlemap(center = c(lon = -71.057083 , lat = 42.361145),
+                         zoom = 14, scale = 2,
+                         maptype ='terrain',
+                         color = 'color'))
+
+
+p + stat_density2d(
+  aes(x = Long, y = Lat, fill = ..level.., alpha = 0.25),
+  size = 0.01, bins = 30, data = df,
+  geom = "polygon"
+)
+
+```
+
+## Conclusion
+
+We were able to find some patterns in the police reports. Most notably, there was a clear pattern between the hour and the number of incidents reported. More incidents happen in the afternoon and then there is a spike at midnight. However there was minimal variation between days of the week. This does not vary even when broken down by type of incident. The most common types of incidents are Investigate Person, Larceny, Medical Assistance, Motor Vehicle Accident Response and Other. The majority (69%) of all incidents are nonviolent. This makes sense since most incidents occur during the daytime. Further investigation would need to be done to determine if this is a true correlation.
+
